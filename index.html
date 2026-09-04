@@ -115,11 +115,12 @@
   .card-total { font-size: 21px; font-weight: 700; color: var(--ink); }
   .card-total small { font-size: 12px; font-weight: 600; color: var(--muted); }
   .addr {
-    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: nowrap;
     margin: 0 0 11px;
   }
   .addr-street { font-size: 13px; color: #33403f; font-weight: 600; }
   .addr-hood {
+    margin-left: auto; text-align: right; white-space: nowrap;
     font-size: 11px; color: var(--muted); font-weight: 600;
     text-transform: uppercase; letter-spacing: .5px;
   }
@@ -142,12 +143,13 @@
   }
   .card-link {
     display: block; width: 100%; text-align: center; box-sizing: border-box;
-    font-size: 13.5px; font-weight: 700; color: #ffffff;
-    padding: 9px 13px; border-radius: 5px;
+    font-size: 14px; font-weight: 700; letter-spacing: .2px; color: #ffffff;
+    padding: 10px 13px; border-radius: 5px;
     text-decoration: none; margin-top: 4px;
+    text-shadow: 0 1px 1px rgba(0,0,0,.28);
   }
-  .card-link.appart  { background: var(--appart); }
-  .card-link.appart:hover  { background: var(--sea-dark); }
+  .card-link.appart  { background: var(--sea-dark); }
+  .card-link.appart:hover  { background: #1c403e; }
   .card-link.singola { background: var(--singola); }
   .card-link.singola:hover { background: var(--coral-dark); }
 
