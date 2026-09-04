@@ -17,6 +17,10 @@
     --muted: #6b6f68;
     --appart: #2f6d6a;
     --singola: #c9603f;
+    --st-contattato: #d99a2b;  /* ambra */
+    --st-risposta:   #3a7bd5;  /* blu */
+    --st-visita:     #3f9c56;  /* verde */
+    --st-altro:      #8a8f88;  /* neutro */
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
@@ -69,12 +73,36 @@
   .price-pin.appart::after  { color: var(--appart); }
   .price-pin.singola::after { color: var(--singola); }
 
+  /* Badge di stato in alto a destra della capsula */
+  .pin-badge {
+    position: absolute; top: -7px; right: -7px;
+    min-width: 15px; height: 15px; padding: 0 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 700; line-height: 1; color: #fff;
+    border-radius: 8px; border: 1.5px solid #f6f4ee;
+    box-shadow: 0 1px 2px rgba(0,0,0,.3);
+    white-space: nowrap;
+  }
+  .pin-badge.contattato { background: var(--st-contattato); }
+  .pin-badge.risposta   { background: var(--st-risposta); }
+  .pin-badge.visita     { background: var(--st-visita); }
+  .pin-badge.altro      { background: var(--st-altro); }
+
   .leaflet-popup-content-wrapper { border-radius: 7px; }
   .leaflet-popup-content { margin: 0; width: 258px !important; }
   .card-photo {
     width: 100%; height: 148px; object-fit: cover; display: block;
     background: #e6e2d8; border-radius: 7px 7px 0 0;
   }
+  /* Banner di stato subito sotto la foto */
+  .status-banner {
+    font-size: 12.5px; font-weight: 700; color: #fff;
+    padding: 6px 14px; letter-spacing: .2px;
+  }
+  .status-banner.contattato { background: var(--st-contattato); }
+  .status-banner.risposta   { background: var(--st-risposta); }
+  .status-banner.visita     { background: var(--st-visita); }
+  .status-banner.altro      { background: var(--st-altro); }
   .card-body { padding: 12px 14px 14px; }
   .tag {
     display: inline-block; font-size: 11px; font-weight: 700;
@@ -83,20 +111,18 @@
   }
   .tag.appart  { background: var(--appart); }
   .tag.singola { background: var(--singola); }
-  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
   .card-total { font-size: 21px; font-weight: 700; color: var(--ink); }
   .card-total small { font-size: 12px; font-weight: 600; color: var(--muted); }
-  .card-sub {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 13px; color: #33403f; margin-bottom: 10px; flex-wrap: wrap;
-  }
-  .stars { color: var(--coral); letter-spacing: 1px; }
-  .pill {
-    font-size: 11.5px; font-weight: 600; color: var(--sea-dark);
-    background: #e4ede9; padding: 2px 8px; border-radius: 11px;
-  }
   .addr { font-size: 13px; color: #33403f; margin: 0 0 2px; font-weight: 600; }
   .hood { font-size: 12px; color: var(--muted); margin: 0 0 11px; }
+  .note { font-size: 12.5px; line-height: 1.4; color: #33403f; font-style: italic; margin: 0 0 9px; white-space: pre-wrap; }
+  .free-from {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12.5px; margin: 0 0 12px;
+  }
+  .free-from span { color: var(--muted); }
+  .free-from strong { color: #26302f; font-weight: 700; }
   dl.detail {
     display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
     margin: 0 0 11px; font-size: 12.5px;
@@ -107,12 +133,13 @@
     font-size: 11px; font-weight: 700; color: var(--sea-dark);
     border-top: 1px solid var(--line); padding-top: 8px; margin: 0 0 6px;
   }
-  .note { font-size: 12.5px; line-height: 1.4; color: #33403f; font-style: italic; margin: 0 0 11px; white-space: pre-wrap; }
   .card-link {
-    display: inline-block; font-size: 13px; font-weight: 600; color: #fff;
-    background: var(--sea); padding: 7px 13px; border-radius: 4px; text-decoration: none;
+    display: block; width: 100%; text-align: center; box-sizing: border-box;
+    font-size: 13.5px; font-weight: 700; color: #ffffff;
+    background: var(--coral); padding: 9px 13px; border-radius: 5px;
+    text-decoration: none; margin-top: 4px;
   }
-  .card-link:hover { background: var(--sea-dark); }
+  .card-link:hover { background: var(--coral-dark); }
 
   .overlay {
     position: fixed; inset: 0; background: rgba(28,43,45,.55);
@@ -270,12 +297,47 @@
     return typeClass(tip) === "appart" ? "appartamento" : "singola";
   }
 
+  // Classifica lo stato di avanzamento in una delle tre fasi note.
+  // Ritorna { key, label, short } oppure null se lo stato è assente/ignoto.
+  //  - key:   "contattato" | "risposta" | "visita"  (usata per il colore via CSS)
+  //  - label: testo per il banner nel popup
+  //  - short: testo compatto per il simbolo sul marker
+  function statusInfo(o) {
+    var raw = (o.stato || "").trim();
+    if (!raw) return null;
+    var t = raw.toLowerCase();
+    var visita = has(o["data visita"]) ? String(o["data visita"]).trim() : "";
+
+    if (t.indexOf("fissata") === 0 || t.indexOf("visita") === 0) {
+      return {
+        key: "visita",
+        label: visita ? ("Visita fissata il " + esc(visita)) : "Visita fissata",
+        short: visita ? esc(visita) : "\u2713"   // data, o spunta se manca
+      };
+    }
+    if (t.indexOf("risposta") === 0) {
+      return { key: "risposta", label: "Ha risposto", short: "\u00B7\u00B7" };
+    }
+    if (t.indexOf("contattato") === 0) {
+      return { key: "contattato", label: "Contattato", short: "\u00B7" };
+    }
+    // stato non riconosciuto: lo mostro comunque, neutro
+    return { key: "altro", label: esc(raw), short: "\u00B7" };
+  }
+
   function buildPopup(o) {
     var cls = typeClass(o.tipologia);
+    var st = statusInfo(o);
     var html = "";
     if (has(o.foto)) {
       html += '<img class="card-photo" src="' + esc(o.foto) + '" alt="" onerror="this.style.display=\'none\'">';
     }
+
+    // Banner di stato (colore per fase), subito sotto la foto
+    if (st) {
+      html += '<div class="status-banner ' + st.key + '">' + st.label + '</div>';
+    }
+
     html += '<div class="card-body">';
 
     html += '<div class="card-head">';
@@ -285,13 +347,14 @@
     }
     html += '</div>';
 
-    var subBits = [];
-    if (has(o.voto)) subBits.push('<span class="stars">' + esc(o.voto) + '</span>');
-    if (has(o.stato)) subBits.push('<span class="pill">' + esc(o.stato) + '</span>');
-    if (subBits.length) html += '<div class="card-sub">' + subBits.join("") + '</div>';
-
     if (has(o.indirizzo)) html += '<p class="addr">' + esc(o.indirizzo) + '</p>';
     if (has(o.quartiere)) html += '<p class="hood">' + esc(o.quartiere) + '</p>';
+
+    // Primo layer: nota personale + libero da
+    if (has(o.note)) html += '<p class="note">\u201C' + esc(o.note) + '\u201D</p>';
+    if (has(o["disp da"])) {
+      html += '<p class="free-from"><span>Libero da</span><strong>' + esc(o["disp da"]) + '</strong></p>';
+    }
 
     var costi = [];
     addRow(costi, "Affitto", o.affitto);
@@ -304,7 +367,6 @@
     }
 
     var det = [];
-    addRow(det, "Disponibile da", o["disp da"]);
     addRow(det, "Contratto", o.contratto);
     addRow(det, "Arredato", o.arredato);
     addRow(det, "Coinquilini", o["# coinq"]);
@@ -314,8 +376,6 @@
     if (det.length) {
       html += '<p class="section-label">Dettagli</p><dl class="detail">' + det.join("") + '</dl>';
     }
-
-    if (has(o.note)) html += '<p class="note">\u201C' + esc(o.note) + '\u201D</p>';
 
     if (has(o.link)) {
       html += '<a class="card-link" href="' + esc(o.link) + '" target="_blank" rel="noopener">Vedi annuncio &rsaquo;</a>';
@@ -333,9 +393,13 @@
   function makeIcon(o) {
     var cls = typeClass(o.tipologia);
     var price = has(o["tot. /mese"]) ? esc(o["tot. /mese"]) : "\u2022";
+    var st = statusInfo(o);
+    var badge = st
+      ? '<span class="pin-badge ' + st.key + '">' + st.short + '</span>'
+      : '';
     return L.divIcon({
       className: "price-pin-wrap",
-      html: '<div class="price-pin ' + cls + '">' + price + '</div>',
+      html: '<div class="price-pin ' + cls + '">' + price + badge + '</div>',
       iconSize: null,          // lascia dimensionare la capsula sul contenuto
       iconAnchor: [0, 0],      // il centraggio lo fa il CSS (translate)
       popupAnchor: [0, -18]
