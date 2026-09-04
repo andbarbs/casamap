@@ -302,6 +302,24 @@
   }
   function has(v) { return v != null && String(v).trim() !== ""; }
 
+  // Estrae [lat, lng] dall'annuncio. Accetta:
+  //  - una colonna unica "coordinate" nel formato "45.07, 7.68" (come da Google Maps)
+  //  - oppure due colonne separate "lat" e "lng"
+  // Ritorna [lat, lng] numerici, oppure null se non ci sono coordinate valide.
+  function readCoords(o) {
+    if (has(o.coordinate)) {
+      var parts = String(o.coordinate).split(/[,;]/);
+      if (parts.length >= 2) {
+        var la = parseFloat(parts[0].trim().replace(",", "."));
+        var ln = parseFloat(parts[1].trim().replace(",", "."));
+        if (!isNaN(la) && !isNaN(ln)) return [la, ln];
+      }
+    }
+    var lat = parseFloat(o.lat), lng = parseFloat(o.lng);
+    if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+    return null;
+  }
+
   // Ricava un nome leggibile del portale dall'URL del link.
   function portalName(url) {
     try {
@@ -453,8 +471,8 @@
     var pending = [];
 
     items.forEach(function (o) {
-      var lat = parseFloat(o.lat), lng = parseFloat(o.lng);
-      if (!isNaN(lat) && !isNaN(lng)) addMarker(o, lat, lng, bounds);
+      var coords = readCoords(o);
+      if (coords) addMarker(o, coords[0], coords[1], bounds);
       else if (has(o.indirizzo)) pending.push(o);
     });
 
@@ -552,7 +570,7 @@
     var h = '<h2>Collega il tuo Foglio Google</h2>';
     if (isError) h += '<p style="color:#c9603f">Non riesco a leggere il foglio. Verifica che sia pubblicato sul web in formato CSV.</p>';
     h += '<p>Incolla il link del tuo foglio pubblicato (o quello di modifica). L\'app riconosce automaticamente le colonne del tuo foglio: tipologia, indirizzo, quartiere, affitto, condo, tot. /mese, deposito, agenzia, disp da, contratto, arredato, # coinq, # bagni, commute io, commute Giulia, voto, note, stato, foto, link.</p>';
-    h += '<p style="font-size:13px;color:#6b6f68">Il colore del marker dipende da <code>tipologia</code> (appart / singola) e il numero mostrato \u00E8 <code>tot. /mese</code>. I campi vuoti vengono semplicemente nascosti nel popup.</p>';
+    h += '<p style="font-size:13px;color:#6b6f68">Il colore del marker dipende da <code>tipologia</code> (appart / singola) e il numero mostrato \u00E8 <code>tot. /mese</code>. Per posizionare i marker senza attese, aggiungi una colonna <code>coordinate</code> con il valore copiato da Google Maps (es. <code>45.07, 7.68</code>); in mancanza, l\'app ricava la posizione dall\'<code>indirizzo</code>. I campi vuoti vengono semplicemente nascosti nel popup.</p>';
     h += '<input type="text" id="sheetUrl" placeholder="https://docs.google.com/\u2026/pub?output=csv" value="' + esc(current) + '">';
     h += '<div class="row"><button class="btn btn-primary" id="saveUrl">Salva e carica</button>' +
          (current ? '<button class="btn btn-ghost" id="cancelSetup">Annulla</button>' : '') + '</div>';
