@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Mappa annunci — casa a Torino</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --ink: #1c2b2d;
+    --paper: #f6f4ee;
+    --sea: #2f6d6a;
+    --sea-dark: #234f4d;
+    --coral: #c9603f;
+    --coral-dark: #a84a2c;
+    --line: #d8d2c4;
+    --muted: #6b6f68;
+    --appart: #2f6d6a;
+    --singola: #c9603f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--paper);
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+  header {
+    padding: 11px 18px; background: var(--sea); color: #f6f4ee;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    box-shadow: 0 1px 0 rgba(0,0,0,.15); z-index: 500;
+  }
+  header h1 { font-size: 18px; letter-spacing: .3px; margin: 0; font-weight: 700; }
+  header .count { font-size: 13px; color: #cfe0de; }
+  .legend { display: flex; gap: 14px; font-size: 12.5px; color: #eef4f3; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1.5px solid #f6f4ee; }
+  .status-wrap { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  #status { font-size: 12.5px; color: #cfe0de; }
+  header button {
+    font: inherit; font-size: 12.5px; border: 1px solid rgba(255,255,255,.4);
+    background: transparent; color: #f6f4ee; padding: 4px 11px;
+    border-radius: 3px; cursor: pointer;
+  }
+  header button:hover { background: rgba(255,255,255,.12); }
+  #map { flex: 1; width: 100%; background: #dfe6e4; }
+
+  .price-pin {
+    position: relative; white-space: nowrap;
+    font-weight: 700; font-size: 12.5px; color: #fff;
+    padding: 3px 8px; border-radius: 13px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.35);
+    border: 1.5px solid rgba(255,255,255,.85);
+    transform: translate(-50%, -50%);
+  }
+  .price-pin.appart  { background: var(--appart); }
+  .price-pin.singola { background: var(--singola); }
+  .price-pin::after {
+    content: ""; position: absolute; left: 50%; bottom: -6px;
+    width: 0; height: 0; transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid currentColor;
+  }
+  .price-pin.appart::after  { color: var(--appart); }
+  .price-pin.singola::after { color: var(--singola); }
+
+  .leaflet-popup-content-wrapper { border-radius: 7px; }
+  .leaflet-popup-content { margin: 0; width: 258px !important; }
+  .card-photo {
+    width: 100%; height: 148px; object-fit: cover; display: block;
+    background: #e6e2d8; border-radius: 7px 7px 0 0;
+  }
+  .card-body { padding: 12px 14px 14px; }
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    letter-spacing: .4px; color: #fff; padding: 2px 8px;
+    border-radius: 3px; vertical-align: middle;
+  }
+  .tag.appart  { background: var(--appart); }
+  .tag.singola { background: var(--singola); }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .card-total { font-size: 21px; font-weight: 700; color: var(--ink); }
+  .card-total small { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .card-sub {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #33403f; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .stars { color: var(--coral); letter-spacing: 1px; }
+  .pill {
+    font-size: 11.5px; font-weight: 600; color: var(--sea-dark);
+    background: #e4ede9; padding: 2px 8px; border-radius: 11px;
+  }
+  .addr { font-size: 13px; color: #33403f; margin: 0 0 2px; font-weight: 600; }
+  .hood { font-size: 12px; color: var(--muted); margin: 0 0 11px; }
+  dl.detail {
+    display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
+    margin: 0 0 11px; font-size: 12.5px;
+  }
+  dl.detail dt { color: var(--muted); }
+  dl.detail dd { margin: 0; text-align: right; color: #26302f; font-weight: 600; }
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--sea-dark);
+    border-top: 1px solid var(--line); padding-top: 8px; margin: 0 0 6px;
+  }
+  .note { font-size: 12.5px; line-height: 1.4; color: #33403f; font-style: italic; margin: 0 0 11px; white-space: pre-wrap; }
+  .card-link {
+    display: inline-block; font-size: 13px; font-weight: 600; color: #fff;
+    background: var(--sea); padding: 7px 13px; border-radius: 4px; text-decoration: none;
+  }
+  .card-link:hover { background: var(--sea-dark); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(28,43,45,.55);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+  }
+  .overlay.hidden { display: none; }
+  .sheet {
+    background: var(--paper); max-width: 560px; width: 100%;
+    max-height: 88vh; overflow-y: auto; border-radius: 8px;
+    padding: 26px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.3);
+  }
+  .sheet h2 { margin: 0 0 4px; font-size: 21px; color: var(--sea-dark); }
+  .sheet p, .sheet ol { line-height: 1.6; font-size: 14.5px; }
+  .sheet code { background: #e8e3d7; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  .sheet input[type=text] {
+    width: 100%; font: inherit; font-size: 14px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 4px; margin-top: 6px;
+  }
+  .sheet .row { display: flex; gap: 10px; margin-top: 18px; }
+  .sheet .btn {
+    font: inherit; font-size: 14px; font-weight: 600;
+    padding: 9px 18px; border-radius: 4px; cursor: pointer; border: none;
+  }
+  .btn-primary { background: var(--sea); color: #fff; }
+  .btn-primary:hover { background: var(--sea-dark); }
+  .btn-ghost { background: transparent; border: 1px solid var(--line) !important; color: var(--ink); }
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #f6f4ee; padding: 10px 18px; border-radius: 5px;
+    font-size: 13.5px; z-index: 1200; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  }
+  .toast.hidden { display: none; }
+  @media (max-width: 560px) {
+    header h1 { font-size: 16px; }
+    .legend { order: 3; width: 100%; }
+    .sheet { padding: 22px 20px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Annunci casa</h1>
+  <span class="count" id="count"></span>
+  <div class="legend">
+    <span><i style="background:var(--appart)"></i>appartamento</span>
+    <span><i style="background:var(--singola)"></i>singola</span>
+  </div>
+  <div class="status-wrap">
+    <span id="status"></span>
+    <button id="reloadBtn">Aggiorna</button>
+    <button id="setupBtn">Foglio</button>
+  </div>
+</header>
+<div id="map"></div>
+
+<div class="overlay hidden" id="overlay"><div class="sheet" id="sheetContent"></div></div>
+<div class="toast hidden" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var LS_KEY = "immo_map_sheet_url";
+  var GEO_KEY = "immo_map_geocache_v2";
+  var CITY_HINT = "Torino, Italia";
+  var map, markerLayer;
+  var geocache = load(GEO_KEY, {});
+
+  function load(k, def) { try { return JSON.parse(localStorage.getItem(k)) || def; } catch (e) { return def; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  map = L.map("map", { zoomControl: true }).setView([45.07, 7.68], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "&copy; OpenStreetMap"
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+
+  var overlay = document.getElementById("overlay");
+  var sheetContent = document.getElementById("sheetContent");
+  var statusEl = document.getElementById("status");
+  var countEl = document.getElementById("count");
+  var toastEl = document.getElementById("toast");
+  var toastTimer;
+
+  function toast(m) {
+    toastEl.textContent = m; toastEl.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.add("hidden"); }, 3400);
+  }
+  function openSheet(h) { sheetContent.innerHTML = h; overlay.classList.remove("hidden"); }
+  function closeSheet() { overlay.classList.add("hidden"); }
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) closeSheet(); });
+
+  function parseCSV(text) {
+    var rows = [], row = [], field = "", i = 0, inQ = false, c;
+    while (i < text.length) {
+      c = text[i];
+      if (inQ) {
+        if (c === '"') { if (text[i+1] === '"') { field += '"'; i += 2; continue; } inQ = false; i++; continue; }
+        field += c; i++; continue;
+      }
+      if (c === '"') { inQ = true; i++; continue; }
+      if (c === ",") { row.push(field); field = ""; i++; continue; }
+      if (c === "\r") { i++; continue; }
+      if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
+      field += c; i++;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+  function rowsToObjects(rows) {
+    if (!rows.length) return [];
+    var headers = rows[0].map(function (h) { return h.trim().toLowerCase(); });
+    var out = [];
+    for (var r = 1; r < rows.length; r++) {
+      if (rows[r].every(function (v) { return (v || "").trim() === ""; })) continue;
+      var o = {};
+      for (var c = 0; c < headers.length; c++) o[headers[c]] = (rows[r][c] || "").trim();
+      out.push(o);
+    }
+    return out;
+  }
+
+  function geocode(address) {
+    var q = address + ", " + CITY_HINT;
+    var key = q.toLowerCase().trim();
+    if (geocache[key]) return Promise.resolve(geocache[key]);
+    var url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q);
+    return fetch(url, { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.length) {
+          var pt = { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+          geocache[key] = pt; save(GEO_KEY, geocache); return pt;
+        }
+        return null;
+      }).catch(function () { return null; });
+  }
+  function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+    });
+  }
+  function has(v) { return v != null && String(v).trim() !== ""; }
+
+  function typeClass(tip) {
+    var t = (tip || "").toLowerCase();
+    if (t.indexOf("appart") === 0) return "appart";
+    return "singola";
+  }
+  function typeLabel(tip) {
+    return typeClass(tip) === "appart" ? "appartamento" : "singola";
+  }
+
+  function buildPopup(o) {
+    var cls = typeClass(o.tipologia);
+    var html = "";
+    if (has(o.foto)) {
+      html += '<img class="card-photo" src="' + esc(o.foto) + '" alt="" onerror="this.style.display=\'none\'">';
+    }
+    html += '<div class="card-body">';
+
+    html += '<div class="card-head">';
+    html += '<span class="tag ' + cls + '">' + typeLabel(o.tipologia) + '</span>';
+    if (has(o["tot. /mese"])) {
+      html += '<span class="card-total">' + esc(o["tot. /mese"]) + ' <small>/mese</small></span>';
+    }
+    html += '</div>';
+
+    var subBits = [];
+    if (has(o.voto)) subBits.push('<span class="stars">' + esc(o.voto) + '</span>');
+    if (has(o.stato)) subBits.push('<span class="pill">' + esc(o.stato) + '</span>');
+    if (subBits.length) html += '<div class="card-sub">' + subBits.join("") + '</div>';
+
+    if (has(o.indirizzo)) html += '<p class="addr">' + esc(o.indirizzo) + '</p>';
+    if (has(o.quartiere)) html += '<p class="hood">' + esc(o.quartiere) + '</p>';
+
+    var costi = [];
+    addRow(costi, "Affitto", o.affitto);
+    addRow(costi, "Condominio", o.condo);
+    addRow(costi, "Riscaldamento", o["risc (anno)"], "/anno");
+    addRow(costi, "Deposito", o.deposito);
+    addRow(costi, "Quota agenzia", o.agenzia);
+    if (costi.length) {
+      html += '<p class="section-label">Costi</p><dl class="detail">' + costi.join("") + '</dl>';
+    }
+
+    var det = [];
+    addRow(det, "Disponibile da", o["disp da"]);
+    addRow(det, "Contratto", o.contratto);
+    addRow(det, "Arredato", o.arredato);
+    addRow(det, "Coinquilini", o["# coinq"]);
+    addRow(det, "Bagni", o["# bagni"]);
+    addRow(det, "Tragitto io", o["commute io"], " min");
+    addRow(det, "Tragitto Giulia", o["commute giulia"], " min");
+    if (det.length) {
+      html += '<p class="section-label">Dettagli</p><dl class="detail">' + det.join("") + '</dl>';
+    }
+
+    if (has(o.note)) html += '<p class="note">\u201C' + esc(o.note) + '\u201D</p>';
+
+    if (has(o.link)) {
+      html += '<a class="card-link" href="' + esc(o.link) + '" target="_blank" rel="noopener">Vedi annuncio &rsaquo;</a>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function addRow(arr, label, value, suffix) {
+    if (!has(value)) return;
+    var v = esc(value) + (suffix ? suffix : "");
+    arr.push('<dt>' + esc(label) + '</dt><dd>' + v + '</dd>');
+  }
+
+  function makeIcon(o) {
+    var cls = typeClass(o.tipologia);
+    var price = has(o["tot. /mese"]) ? esc(o["tot. /mese"]) : "\u2022";
+    return L.divIcon({
+      className: "",
+      html: '<div class="price-pin ' + cls + '">' + price + '</div>',
+      iconSize: [1, 1],
+      iconAnchor: [0, 0],
+      popupAnchor: [0, -16]
+    });
+  }
+
+  function renderItems(items) {
+    markerLayer.clearLayers();
+    var bounds = [];
+    var pending = [];
+
+    items.forEach(function (o) {
+      var lat = parseFloat(o.lat), lng = parseFloat(o.lng);
+      if (!isNaN(lat) && !isNaN(lng)) addMarker(o, lat, lng, bounds);
+      else if (has(o.indirizzo)) pending.push(o);
+    });
+
+    if (bounds.length) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    updateCount();
+
+    if (pending.length) {
+      statusEl.textContent = "Individuo " + pending.length + " indirizzi\u2026";
+      (function next(i) {
+        if (i >= pending.length) {
+          statusEl.textContent = "";
+          if (bounds.length) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+          return;
+        }
+        geocode(pending[i].indirizzo).then(function (pt) {
+          if (pt) { addMarker(pending[i], pt.lat, pt.lng, bounds); updateCount(); }
+          delay(1100).then(function () { next(i + 1); });
+        });
+      })(0);
+    }
+  }
+
+  function addMarker(o, lat, lng, bounds) {
+    var m = L.marker([lat, lng], { icon: makeIcon(o), riseOnHover: true }).addTo(markerLayer);
+    m.bindPopup(buildPopup(o), { maxWidth: 280, minWidth: 258 });
+    bounds.push([lat, lng]);
+  }
+
+  function updateCount() {
+    var n = markerLayer.getLayers().length;
+    countEl.textContent = n + (n === 1 ? " annuncio" : " annunci");
+  }
+
+  // Genera gli URL CSV da provare in ordine, tutti in lettura diretta da Google.
+  // Nessun proxy: se falliscono, l'errore dev'essere visibile.
+  function candidateUrls(input) {
+    input = input.trim();
+    var urls = [];
+    if (/output=csv/.test(input)) {
+      urls.push(input); // link "Pubblica sul web"
+      return urls;
+    }
+    var mPub = input.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/); // pubblicato /d/e/
+    var mStd = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);   // standard /d/
+    if (mPub) {
+      urls.push("https://docs.google.com/spreadsheets/d/e/" + mPub[1] + "/pub?output=csv");
+    } else if (mStd) {
+      var g = input.match(/[#&?]gid=([0-9]+)/);
+      var gid = g ? g[1] : "0";
+      urls.push("https://docs.google.com/spreadsheets/d/" + mStd[1] + "/export?format=csv&gid=" + gid);
+      urls.push("https://docs.google.com/spreadsheets/d/" + mStd[1] + "/gviz/tq?tqx=out:csv&gid=" + gid);
+    } else {
+      urls.push(input);
+    }
+    return urls;
+  }
+
+  function cleanCsv(text) {
+    return text.replace(/^\uFEFF/, "");
+  }
+
+  function tryFetch(urls, idx) {
+    if (idx >= urls.length) {
+      return Promise.reject(new Error("tutti i tentativi di lettura sono falliti"));
+    }
+    return fetch(urls[idx], { redirect: "follow" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(function (t) {
+        if (/^\s*<(!doctype|html)/i.test(t)) throw new Error("risposta non-CSV (pagina HTML)");
+        return cleanCsv(t);
+      })
+      .catch(function () { return tryFetch(urls, idx + 1); });
+  }
+
+  function doLoad() {
+    var raw = localStorage.getItem(LS_KEY);
+    if (!raw) { showSetup(); return; }
+    statusEl.textContent = "Carico\u2026";
+    tryFetch(candidateUrls(raw), 0)
+      .then(function (t) {
+        var items = rowsToObjects(parseCSV(t));
+        statusEl.textContent = "";
+        if (!items.length) { toast("Il foglio \u00E8 raggiungibile ma sembra vuoto."); return; }
+        renderItems(items);
+      })
+      .catch(function () {
+        statusEl.textContent = "";
+        toast("Lettura del foglio fallita (probabile CORS in locale).");
+        showSetup(true);
+      });
+  }
+
+  function showSetup(isError) {
+    var current = localStorage.getItem(LS_KEY) || "";
+    var h = '<h2>Collega il tuo Foglio Google</h2>';
+    if (isError) h += '<p style="color:#c9603f">Non riesco a leggere il foglio. Verifica che sia pubblicato sul web in formato CSV.</p>';
+    h += '<p>Incolla il link del tuo foglio pubblicato (o quello di modifica). L\'app riconosce automaticamente le colonne del tuo foglio: tipologia, indirizzo, quartiere, affitto, condo, tot. /mese, deposito, agenzia, disp da, contratto, arredato, # coinq, # bagni, commute io, commute Giulia, voto, note, stato, foto, link.</p>';
+    h += '<p style="font-size:13px;color:#6b6f68">Il colore del marker dipende da <code>tipologia</code> (appart / singola) e il numero mostrato \u00E8 <code>tot. /mese</code>. I campi vuoti vengono semplicemente nascosti nel popup.</p>';
+    h += '<input type="text" id="sheetUrl" placeholder="https://docs.google.com/\u2026/pub?output=csv" value="' + esc(current) + '">';
+    h += '<div class="row"><button class="btn btn-primary" id="saveUrl">Salva e carica</button>' +
+         (current ? '<button class="btn btn-ghost" id="cancelSetup">Annulla</button>' : '') + '</div>';
+    openSheet(h);
+    document.getElementById("saveUrl").addEventListener("click", function () {
+      var v = document.getElementById("sheetUrl").value.trim();
+      if (!v) { toast("Incolla il link del foglio."); return; }
+      localStorage.setItem(LS_KEY, v); closeSheet(); doLoad();
+    });
+    var cancel = document.getElementById("cancelSetup");
+    if (cancel) cancel.addEventListener("click", closeSheet);
+  }
+
+  document.getElementById("reloadBtn").addEventListener("click", doLoad);
+  document.getElementById("setupBtn").addEventListener("click", function () { showSetup(); });
+
+  // Nessun foglio preimpostato: il link lo inserisci al primo avvio e resta
+  // salvato solo nel tuo browser (localStorage), non nel codice pubblicato.
+  doLoad();
+})();
+</script>
+</body>
+</html>
