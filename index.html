@@ -45,13 +45,18 @@
   header button:hover { background: rgba(255,255,255,.12); }
   #map { flex: 1; width: 100%; background: #dfe6e4; }
 
+  /* Il wrapper generato da Leaflet non deve imporre dimensioni */
+  .price-pin-wrap { width: auto !important; height: auto !important; }
   .price-pin {
-    position: relative; white-space: nowrap;
-    font-weight: 700; font-size: 12.5px; color: #fff;
-    padding: 3px 8px; border-radius: 13px;
+    position: absolute;
+    left: 0; top: 0;
+    transform: translate(-50%, -100%);  /* punta ancorata sotto la capsula */
+    white-space: nowrap;
+    font-weight: 700; font-size: 12.5px; color: #fff; line-height: 1.15;
+    padding: 3px 9px; border-radius: 13px;
     box-shadow: 0 2px 6px rgba(0,0,0,.35);
-    border: 1.5px solid rgba(255,255,255,.85);
-    transform: translate(-50%, -50%);
+    border: 1.5px solid rgba(255,255,255,.9);
+    margin-top: -6px;  /* spazio per la coda */
   }
   .price-pin.appart  { background: var(--appart); }
   .price-pin.singola { background: var(--singola); }
@@ -329,11 +334,11 @@
     var cls = typeClass(o.tipologia);
     var price = has(o["tot. /mese"]) ? esc(o["tot. /mese"]) : "\u2022";
     return L.divIcon({
-      className: "",
+      className: "price-pin-wrap",
       html: '<div class="price-pin ' + cls + '">' + price + '</div>',
-      iconSize: [1, 1],
-      iconAnchor: [0, 0],
-      popupAnchor: [0, -16]
+      iconSize: null,          // lascia dimensionare la capsula sul contenuto
+      iconAnchor: [0, 0],      // il centraggio lo fa il CSS (translate)
+      popupAnchor: [0, -18]
     });
   }
 
